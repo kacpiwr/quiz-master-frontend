@@ -1,0 +1,5 @@
+{
+  "name": "React Quiz Master",
+  "description": "An interactive quiz application built with React and TypeScript. Users can take quizzes fetched from an API, see their scores, and create new quizzes by providing question data in JSON format.",
+  "requestFramePermissions": []
+}

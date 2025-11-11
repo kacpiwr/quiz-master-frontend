@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>React Quiz Master</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom animation for fade-in effect */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+    </style>
+    <!-- Load React and ReactDOM as globals -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    <!-- Add Babel Standalone to transpile JSX in the browser -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  </head>
+  <body class="bg-slate-900 text-slate-100">
+    <div id="root"></div>
+
+    <script type="text/babel">
+      // --- Start of Consolidated Application Code ---
+
+      // From constants.ts
+      const API_BASE_URL = 'http://localhost:8000';
+      
+      // From components/ResultsView.tsx
+      const ResultsView = ({ score, totalQuestions, onPlayAgain, onReturnToList }) => {
+        const percentage = totalQuestions > 0 ? (score / totalQuestions) * 100 : 0;
+
+        const getFeedback = () => {
+          if (percentage === 100) return "Perfect Score! You're a genius!";
+          if (percentage >= 80) return "Excellent work! You really know your stuff.";
+          if (percentage >= 60) return "Great job! A very respectable score.";
+          if (percentage >= 40) return "Not bad! A little more practice and you'll be an expert.";
+          return "Keep practicing! Every attempt is a step forward.";
+        };
+
+        return (
+          <div className="bg-slate-800 p-8 rounded-lg shadow-2xl max-w-lg mx-auto text-center animate-fade-in">
+            <h2 className="text-3xl font-bold text-indigo-400 mb-4">Quiz Completed!</h2>
+            <p className="text-lg text-slate-300 mb-6">{getFeedback()}</p>
+            
+            <div className="bg-slate-900 rounded-lg p-6 mb-8">
+              <p className="text-slate-400 text-sm uppercase font-semibold">Your Score</p>
+              <p className="text-5xl font-bold text-white my-2">
+                {score} <span className="text-3xl text-slate-400">/ {totalQuestions}</span>
+              </p>
+              <p className="text-2xl font-semibold text-indigo-400">{percentage.toFixed(2)}%</p>
+            </div>
+            
+            <div className="flex flex-col sm:flex-row justify-center gap-4">
+              <button
+                onClick={onPlayAgain}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-md transition-colors duration-300 flex items-center justify-center gap-2"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg>
+                Play Again
+              </button>
+              <button
+                onClick={onReturnToList}
+                className="bg-slate-600 hover:bg-slate-700 text-white font-bold py-3 px-6 rounded-md transition-colors duration-300 flex items-center justify-center gap-2"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9h18v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9Z"/><path d="m3 9-1.306-1.682A1 1 0 0 1 1.535 6H2.4a1 1 0 0 1 .848.485L4.5 9"/><path d="M12 13v6"/><path d="M9 16h6"/></svg>
+                Back to Quiz List
+              </button>
+            </div>
+          </div>
+        );
+      };
+
+      // From components/QuizView.tsx
+      const QuizView = ({ quiz, onQuizComplete, onReturnToList }) => {
+        const { useState, useEffect, useMemo } = React;
+
+        const shuffleArray = (array) => {
+          if (!Array.isArray(array)) return []; // Defensive check to prevent crash
+          const newArr = [...array];
+          for (let i = newArr.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [newArr[i], newArr[j]] = [newArr[j], newArr[i]];
+          }
+          return newArr;
+        };
+
+        const [shuffledQuestions, setShuffledQuestions] = useState([]);
+        const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+        const [score, setScore] = useState(0);
+        const [selectedAnswer, setSelectedAnswer] = useState(null);
+        const [isAnswered, setIsAnswered] = useState(false);
+        
+        useEffect(() => {
+          // The questions from the backend are inside a `content` property which can be a JSON string.
+          let questions = [];
+          if (quiz && quiz.content) {
+            const contentData = typeof quiz.content === 'string'
+              ? JSON.parse(quiz.content)
+              : quiz.content;
+            questions = contentData.questions || [];
+          }
+          setShuffledQuestions(shuffleArray(questions));
+        }, [quiz]);
+
+        const currentQuestion = useMemo(() => {
+          return shuffledQuestions[currentQuestionIndex];
+        }, [shuffledQuestions, currentQuestionIndex]);
+
+        const shuffledOptions = useMemo(() => {
+          return currentQuestion ? shuffleArray(currentQuestion.options) : [];
+        }, [currentQuestion]);
+        
+        const handleAnswerSelect = (option) => {
+          if (isAnswered) return;
+          setSelectedAnswer(option);
+        };
+
+        const handleSubmitAnswer = () => {
+          if (!selectedAnswer) return;
+          
+          if (selectedAnswer === currentQuestion.correct_answer) {
+            setScore(prev => prev + 1);
+          }
+          setIsAnswered(true);
+        };
+
+        const handleNextQuestion = () => {
+          if (currentQuestionIndex < shuffledQuestions.length - 1) {
+            setCurrentQuestionIndex(prev => prev + 1);
+            setSelectedAnswer(null);
+            setIsAnswered(false);
+          } else {
+            onQuizComplete(score, shuffledQuestions.length);
+          }
+        };
+        
+        const getButtonClass = (option) => {
+          if (!isAnswered) {
+            return selectedAnswer === option 
+              ? 'bg-indigo-600 ring-2 ring-indigo-300' 
+              : 'bg-slate-700 hover:bg-slate-600';
+          }
+
+          if (option === currentQuestion.correct_answer) {
+            return 'bg-green-600 text-white';
+          }
+
+          if (option === selectedAnswer && option !== currentQuestion.correct_answer) {
+            return 'bg-red-600 text-white';
+          }
+
+          return 'bg-slate-700 opacity-60';
+        };
+
+        if (shuffledQuestions.length === 0 || !currentQuestion) {
+          return (
+            <div className="flex justify-center items-center p-8">
+              <div className="w-12 h-12 border-4 border-dashed rounded-full animate-spin border-indigo-500"></div>
+            </div>
+          );
+        }
+
+        return (
+          <div className="bg-slate-800 p-6 sm:p-8 rounded-lg shadow-2xl max-w-2xl mx-auto">
+            <div className="mb-6">
+              <div className="flex justify-between items-center mb-2 text-slate-400">
+                <h2 className="text-xl font-bold text-indigo-400">{quiz.title}</h2>
+                <span>Question {currentQuestionIndex + 1} / {shuffledQuestions.length}</span>
+              </div>
+              <div className="w-full bg-slate-700 rounded-full h-2.5">
+                <div 
+                  className="bg-indigo-500 h-2.5 rounded-full transition-all duration-500" 
+                  style={{ width: `${((currentQuestionIndex + 1) / shuffledQuestions.length) * 100}%` }}>
+                </div>
+              </div>
+            </div>
+
+            <p className="text-xl sm:text-2xl font-medium mb-6 min-h-[6rem]">{currentQuestion.question}</p>
+
+            <div className="space-y-4 mb-6">
+              {shuffledOptions.map((option, index) => (
+                <button
+                  key={index}
+                  onClick={() => handleAnswerSelect(option)}
+                  disabled={isAnswered}
+                  className={`w-full text-left p-4 rounded-md transition-all duration-300 text-lg ${getButtonClass(option)}`}
+                >
+                  {option}
+                </button>
+              ))}
+            </div>
+
+            {isAnswered && (
+              <div className="bg-slate-900/70 p-4 rounded-lg mb-6 animate-fade-in">
+                {selectedAnswer === currentQuestion.correct_answer ? (
+                  <p className="text-green-400 font-bold text-lg">Correct!</p>
+                ) : (
+                  <p className="text-red-400 font-bold text-lg">Wrong! The correct answer is: {currentQuestion.correct_answer}</p>
+                )}
+                <p className="text-slate-300 mt-2">{currentQuestion.explanation}</p>
+              </div>
+            )}
+
+            <div className="flex justify-between items-center mt-4">
+               <button
+                onClick={onReturnToList}
+                className="bg-slate-600 hover:bg-slate-700 text-white font-bold py-3 px-6 rounded-md transition-colors duration-300 flex items-center justify-center gap-2"
+                aria-label="Return to quiz list"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9h18v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9Z"/><path d="m3 9-1.306-1.682A1 1 0 0 1 1.535 6H2.4a1 1 0 0 1 .848.485L4.5 9"/><path d="M12 13v6"/><path d="M9 16h6"/></svg>
+                Back to Quiz List
+              </button>
+              {!isAnswered ? (
+                <button
+                  onClick={handleSubmitAnswer}
+                  disabled={!selectedAnswer}
+                  className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-600 disabled:cursor-not-allowed text-white font-bold py-3 px-8 rounded-md transition-colors duration-300"
+                >
+                  Submit
+                </button>
+              ) : (
+                <button
+                  onClick={handleNextQuestion}
+                  className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-8 rounded-md transition-colors duration-300"
+                >
+                  {currentQuestionIndex < shuffledQuestions.length - 1 ? 'Next Question' : 'Finish Quiz'}
+                </button>
+              )}
+            </div>
+          </div>
+        );
+      };
+      
+      // From components/QuizList.tsx
+      const QuizList = ({ onStartQuiz }) => {
+        const { useState, useEffect, useCallback } = React;
+        
+        const exampleJson = JSON.stringify({
+          "title": "Frontend Development Basics",
+          "content": {
+            "questions": [
+              {
+                "question": "What does CSS stand for?",
+                "options": ["Cascading Style Sheets", "Creative Style System", "Computer Style Sheets", "Colorful Style Sheets"],
+                "correct_answer": "Cascading Style Sheets",
+                "explanation": "CSS is a style sheet language used for describing the presentation of a document written in a markup language like HTML."
+              },
+              {
+                "question": "Which JavaScript framework was created by Facebook?",
+                "options": ["Angular", "Vue", "React", "Svelte"],
+                "correct_answer": "React",
+                "explanation": "React is a free and open-source front-end JavaScript library for building user interfaces based on UI components."
+              }
+            ]
+          }
+        }, null, 2);
+        
+        const aiPromptText = `Based on the following presentation, generate a JSON object for a quiz. The JSON must be valid and ready for parsing.
+
+The JSON structure must be:
+{
+  "title": "A Creative and Relevant Title",
+  "content": {
+    "questions": [
+      {
+        "question": "The question text.",
+        "options": ["Option A", "Option B", "Option C", "Option D"],
+        "correct_answer": "The correct answer string, exactly matching one of the options.",
+        "explanation": "A brief explanation for why the answer is correct."
+      }
+    ]
+  }
+}
+
+- Ensure there are [...] questions.
+- Ensure the 'correct_answer' field is an exact copy of one of the strings in the 'options' array.
+
+Here is the presentation text:
+---
+[PASTE YOUR PRESENTATION TEXT HERE]
+---
+`;
+
+        const [quizzes, setQuizzes] = useState([]);
+        const [isLoading, setIsLoading] = useState(true);
+        const [error, setError] = useState(null);
+
+        const [formError, setFormError] = useState(null);
+        const [formSuccess, setFormSuccess] = useState(null);
+        const [isSubmitting, setIsSubmitting] = useState(false);
+        const [quizJson, setQuizJson] = useState(exampleJson);
+        const [copyButtonText, setCopyButtonText] = useState('Copy');
+
+
+        const fetchQuizzes = useCallback(async () => {
+          setIsLoading(true);
+          setError(null);
+          try {
+            const response = await fetch(`${API_BASE_URL}/quizes/`);
+            if (!response.ok) {
+              throw new Error('Failed to fetch quizzes. Is the backend server running on localhost:8000?');
+            }
+            const data = await response.json();
+            setQuizzes(data);
+          } catch (err) {
+            setError(err instanceof Error ? err.message : 'An unknown error occurred');
+          } finally {
+            setIsLoading(false);
+          }
+        }, []);
+
+        useEffect(() => {
+          fetchQuizzes();
+        }, [fetchQuizzes]);
+        
+        const handleFormSubmit = async (e) => {
+          e.preventDefault();
+          setIsSubmitting(true);
+          setFormError(null);
+          setFormSuccess(null);
+
+          try {
+            const parsedData = JSON.parse(quizJson);
+            
+            if (!parsedData.title || typeof parsedData.title !== 'string' || parsedData.title.trim() === '') {
+              throw new Error('JSON must include a non-empty "title" field.');
+            }
+            if (!parsedData.content || typeof parsedData.content !== 'object' || parsedData.content === null) {
+                throw new Error('JSON must include a "content" object.');
+            }
+            if (!Array.isArray(parsedData.content.questions) || parsedData.content.questions.length === 0) {
+              throw new Error('The "content" object must include a non-empty "questions" array.');
+            }
+
+            const quizToCreate = parsedData;
+
+            const response = await fetch(`${API_BASE_URL}/quizes/`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(quizToCreate),
+            });
+
+            if (!response.ok) {
+              const errorData = await response.json();
+              throw new Error(errorData.detail || 'Failed to create quiz.');
+            }
+
+            setFormSuccess(`Successfully created quiz: "${quizToCreate.title}"`);
+            fetchQuizzes(); // Refresh the list
+          } catch (err) {
+            setFormError(err instanceof Error ? err.message : 'An error occurred during submission.');
+          } finally {
+            setIsSubmitting(false);
+          }
+        };
+
+        const handleCopyPrompt = () => {
+            navigator.clipboard.writeText(aiPromptText).then(() => {
+                setCopyButtonText('Copied!');
+                setTimeout(() => setCopyButtonText('Copy'), 2000);
+            }).catch(err => {
+                console.error('Failed to copy text: ', err);
+                alert('Failed to copy prompt.');
+            });
+        };
+
+        if (isLoading) {
+          return (
+            <div className="flex justify-center items-center p-8">
+              <div className="w-12 h-12 border-4 border-dashed rounded-full animate-spin border-indigo-500"></div>
+            </div>
+          );
+        }
+
+        if (error) {
+          return <div className="text-center text-red-400 bg-red-900/50 p-4 rounded-lg">{error}</div>;
+        }
+
+        return (
+          <div className="space-y-8">
+            <div className="bg-slate-800 p-6 rounded-lg shadow-lg">
+              <h2 className="text-2xl font-bold mb-4 text-indigo-400">Available Quizzes</h2>
+              {quizzes.length > 0 ? (
+                <ul className="space-y-3">
+                  {quizzes.map((quiz) => (
+                    <li key={quiz.id}>
+                      <button
+                        onClick={() => onStartQuiz(quiz)}
+                        className="w-full text-left bg-slate-700 hover:bg-indigo-600 p-4 rounded-md transition-all duration-300 shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-75"
+                      >
+                        <span className="font-semibold text-lg">{quiz.title}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-slate-400">No quizzes available. Why not create one?</p>
+              )}
+            </div>
+            
+            <div className="bg-slate-800 rounded-lg shadow-lg">
+              <details className="group">
+                <summary className="text-2xl font-bold text-indigo-400 p-6 cursor-pointer list-none flex justify-between items-center">
+                  Create a New Quiz
+                  <span className="transition-transform duration-300 group-open:rotate-180">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                  </span>
+                </summary>
+                <div className="p-6 pt-0">
+                  <form onSubmit={handleFormSubmit} className="space-y-4">
+                    <div>
+                      <label htmlFor="quizJson" className="block text-sm font-medium text-slate-300 mb-2">Quiz Data (JSON format)</label>
+                      <textarea
+                        id="quizJson"
+                        rows={15}
+                        value={quizJson}
+                        onChange={(e) => setQuizJson(e.target.value)}
+                        className="w-full p-3 bg-slate-900 border border-slate-600 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 font-mono text-sm"
+                        placeholder="Paste your quiz JSON here..."
+                      />
+                    </div>
+                    <button type="submit" disabled={isSubmitting} className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-600 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-md transition-colors duration-300">
+                      {isSubmitting ? 'Submitting...' : 'Create Quiz'}
+                    </button>
+                    {formError && <p className="text-red-400 mt-2">{formError}</p>}
+                    {formSuccess && <p className="text-green-400 mt-2">{formSuccess}</p>}
+                  </form>
+                </div>
+              </details>
+            </div>
+
+            <div className="bg-slate-800 rounded-lg shadow-lg">
+              <details className="group">
+                <summary className="text-2xl font-bold text-indigo-400 p-6 cursor-pointer list-none flex justify-between items-center">
+                  Generate Quiz with AI
+                   <span className="transition-transform duration-300 group-open:rotate-180">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                  </span>
+                </summary>
+                <div className="p-6 pt-0">
+                   <p className="text-slate-300 mb-4">
+                    Use this prompt with your favorite AI model (like Gemini) to generate quiz data from your presentation notes, documents, or any text.
+                  </p>
+                  <div className="relative">
+                    <textarea
+                      id="ai-prompt"
+                      readOnly
+                      rows={18}
+                      className="w-full p-3 bg-slate-900 border border-slate-600 rounded-md font-mono text-sm resize-none"
+                      value={aiPromptText}
+                    />
+                     <button 
+                        onClick={handleCopyPrompt}
+                        className="absolute top-3 right-3 bg-slate-700 hover:bg-slate-600 text-white font-semibold py-1 px-3 rounded-md text-sm transition-colors duration-200 flex items-center gap-2"
+                      >
+                        {copyButtonText === 'Copied!' ? (
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                        ) : (
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                        )}
+                        {copyButtonText}
+                      </button>
+                  </div>
+                </div>
+              </details>
+            </div>
+          </div>
+        );
+      };
+
+      // From App.tsx
+      const App = () => {
+        const { useState, useCallback } = React;
+        const [currentView, setCurrentView] = useState('list');
+        const [selectedQuiz, setSelectedQuiz] = useState(null);
+        const [finalScore, setFinalScore] = useState(null);
+        const [error, setError] = useState(null);
+        const [isLoading, setIsLoading] = useState(false);
+
+        const handleStartQuiz = useCallback(async (quizSummary) => {
+          setIsLoading(true);
+          setError(null);
+          try {
+            const response = await fetch(`${API_BASE_URL}/quizes/${quizSummary.id}`);
+            if (!response.ok) {
+              throw new Error(`Failed to fetch quiz details for "${quizSummary.title}"`);
+            }
+            const quizData = await response.json();
+            setSelectedQuiz(quizData);
+            setCurrentView('quiz');
+          } catch (err) {
+            setError(err instanceof Error ? err.message : 'An unknown error occurred.');
+            setCurrentView('list');
+          } finally {
+            setIsLoading(false);
+          }
+        }, []);
+
+        const handleQuizComplete = useCallback((score, total) => {
+          setFinalScore({ score, total });
+          setCurrentView('results');
+        }, []);
+
+        const handlePlayAgain = useCallback(() => {
+          if (selectedQuiz) {
+            setCurrentView('quiz');
+          } else {
+            setCurrentView('list');
+          }
+        }, [selectedQuiz]);
+
+        const handleReturnToList = useCallback(() => {
+          setSelectedQuiz(null);
+          setFinalScore(null);
+          setCurrentView('list');
+        }, []);
+
+        const renderContent = () => {
+          if (isLoading) {
+            return (
+              <div className="flex justify-center items-center h-screen">
+                <div className="w-16 h-16 border-4 border-dashed rounded-full animate-spin border-indigo-500"></div>
+              </div>
+            );
+          }
+          
+          if (error) {
+              return (
+                  <div className="flex flex-col justify-center items-center h-screen text-center">
+                      <p className="text-red-400 text-xl mb-4">{error}</p>
+                      <button
+                          onClick={handleReturnToList}
+                          className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded transition-colors duration-300"
+                      >
+                          Return to Quiz List
+                      </button>
+                  </div>
+              );
+          }
+          
+          switch (currentView) {
+            case 'quiz':
+              return selectedQuiz ? (
+                <QuizView quiz={selectedQuiz} onQuizComplete={handleQuizComplete} onReturnToList={handleReturnToList} />
+              ) : (
+                <p>Error: No quiz selected.</p>
+              );
+            case 'results':
+              return finalScore ? (
+                <ResultsView
+                  score={finalScore.score}
+                  totalQuestions={finalScore.total}
+                  onPlayAgain={handlePlayAgain}
+                  onReturnToList={handleReturnToList}
+                />
+              ) : (
+                <p>Error: No results to show.</p>
+              );
+            case 'list':
+            default:
+              return <QuizList onStartQuiz={handleStartQuiz} />;
+          }
+        };
+
+        return (
+          <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col items-center p-4 sm:p-6 lg:p-8">
+            <header className="w-full max-w-4xl text-center mb-8">
+              <h1 className="text-4xl sm:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-500">
+                React Quiz Master
+              </h1>
+            </header>
+            <main className="w-full max-w-4xl">
+              {renderContent()}
+            </main>
+          </div>
+        );
+      };
+      
+      // From index.tsx
+      const rootElement = document.getElementById('root');
+      if (!rootElement) {
+        throw new Error("Could not find root element to mount to");
+      }
+
+      const root = ReactDOM.createRoot(rootElement);
+      root.render(
+        <React.StrictMode>
+          <App />
+        </React.StrictMode>
+      );
+
+      // --- End of Consolidated Application Code ---
+    </script>
+  </body>
+</html>
