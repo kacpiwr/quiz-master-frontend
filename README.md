@@ -1,71 +1,71 @@
 # React Quiz Master
 
-## Opis
+## Description
 
-Interaktywna aplikacja do quizów zbudowana w React i TypeScript. Użytkownicy mogą rozwiązywać quizy pobierane z API, sprawdzać swoje wyniki i tworzyć nowe quizy, dostarczając dane w formacie JSON.
+An interactive quiz application built with React and TypeScript. Users can take quizzes fetched from an API, check their results, and create new quizzes by providing data in JSON format.
 
-Aplikacja frontendowa jest zaprojektowana do współpracy z backendem FastAPI działającym na `http://localhost:8000`.
+The frontend application is designed to work with a FastAPI backend running on `http://localhost:8000`.
 
-## Funkcje
+## Features
 
-- **Przeglądaj quizy**: Zobacz listę dostępnych quizów.
-- **Rozwiąż quiz**: Rozpocznij quiz z losową kolejnością pytań i odpowiedzi.
-- **Natychmiastowa informacja zwrotna**: Otrzymuj informację o poprawności odpowiedzi i wyjaśnienia.
-- **Zobacz wyniki**: Sprawdź swój wynik końcowy i procentową poprawność.
-- **Twórz nowe quizy**: Dodawaj nowe quizy za pomocą wbudowanego edytora JSON.
+- **Browse Quizzes**: View a list of available quizzes.
+- **Take a Quiz**: Start a quiz with randomized question and answer order.
+- **Instant Feedback**: Get immediate feedback on your answers with explanations.
+- **View Results**: Check your final score and accuracy percentage.
+- **Create New Quizzes**: Add new quizzes using the built-in JSON editor.
 
-## Wymagania
+## Requirements
 
 ### Backend
 - Python 3.8+
 - `pip`
-- Działający serwer API na `http://localhost:8000` z odpowiednimi endpointami. Zależności to zazwyczaj:
+- Running API server at `http://localhost:8000` with appropriate endpoints. Dependencies typically include:
   - `uvicorn`
   - `fastapi`
   - `sqlmodel`
 
 ### Frontend
-- Nowoczesna przeglądarka internetowa.
-- Serwer HTTP do serwowania plików statycznych (np. `python -m http.server`).
+- Modern web browser
+- HTTP server to serve static files (e.g., `python -m http.server`)
 
-## Uruchomienie
+## Setup and Running
 
-### 1. Uruchomienie Backendu
+### 1. Backend Setup
 
-Backend musi działać na `http://localhost:8000`.
+The backend must be running on `http://localhost:8000`.
 
-1.  **Sklonuj repozytorium** (jeśli dotyczy) i przejdź do folderu z backendem.
+1. **Clone the repository** (if applicable) and navigate to the backend directory.
 
-2.  **Utwórz i aktywuj wirtualne środowisko** (zalecane):
+2. **Create and activate a virtual environment** (recommended):
     ```bash
     python -m venv venv
-    source venv/bin/activate  # Na Windows: venv\Scripts\activate
+    source venv/bin/activate  # On Windows: venv\Scripts\activate
     ```
 
-3.  **Zainstaluj zależności**:
-    Utwórz plik `requirements.txt`:
+3. **Install dependencies**:
+    Create a `requirements.txt` file:
     ```txt
     fastapi
     uvicorn[standard]
     sqlmodel
     ```
-    A następnie zainstaluj:
+    Then install the requirements:
     ```bash
     pip install -r requirements.txt
     ```
 
-4.  **Uruchom serwer API**:
-    Mając plik `main.py` z kodu, uruchom serwer:
+4. **Run the API server**:
+    With the `main.py` file in place, start the server:
     ```bash
     uvicorn main:app --reload --port 8000
     ```
-    Serwer powinien być teraz dostępny pod adresem `http://localhost:8000`.
+    The server should now be available at `http://localhost:8000`.
 
-### Ważna konfiguracja Backendu: CORS
+### Important Backend Configuration: CORS
 
-Jeśli w konsoli przeglądarki napotkasz błąd `CORS policy`, oznacza to, że serwer backendowy musi jawnie zezwolić na żądania z Twojej aplikacji frontendowej.
+If you encounter a `CORS policy` error in the browser console, it means the backend server needs to explicitly allow requests from your frontend application.
 
-Aby to naprawić, **zmodyfikuj swój plik `main.py`**, dodając do niego `CORSMiddleware`. Poniżej znajduje się kompletny, poprawiony kod dla `main.py`:
+To fix this, **modify your `main.py` file** by adding `CORSMiddleware`. Below is the complete, corrected code for `main.py`:
 
 ```python
 # main.py
@@ -85,19 +85,19 @@ from models import QuestionsSet, QuestionsSetCreate, QuestionsSetRead
 app = FastAPI(title="Quiz API")
 
 # KROK 2: Dodaj konfigurację CORS Middleware
-# Lista originów, które mogą wysyłać żądania do Twojego API
+# List of origins that are allowed to make requests to your API
 origins = [
     "http://localhost",
-    "http://localhost:8080",  # Adres serwera frontendu
-    # Możesz dodać inne adresy, jeśli jest taka potrzeba
+    "http://localhost:8080",  # Frontend server address
+    # You can add other addresses if needed
 ]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],  # Zezwalaj na wszystkie metody (GET, POST, etc.)
-    allow_headers=["*"],  # Zezwalaj na wszystkie nagłówki
+    allow_methods=["*"],  # Allow all methods (GET, POST, etc.)
+    allow_headers=["*"],  # Allow all headers
 )
 
 @app.on_event("startup")
@@ -132,42 +132,48 @@ def quiz_by_id(id: int, session: Session = Depends(get_session)):
     return quiz
 
 ```
-Po wprowadzeniu tych zmian i ponownym uruchomieniu serwera `uvicorn`, błąd CORS powinien zniknąć.
+After making these changes and restarting the `uvicorn` server, the CORS error should be resolved.
 
-### 2. Uruchomienie Frontendu
+### 2. Frontend Setup
 
-Cały kod frontendu znajduje się w jednym pliku: `index.html`. Nie jest wymagany żaden proces budowania.
+The entire frontend code is contained in a single file: `index.html`. No build process is required.
 
-1.  Umieść plik `index.html` w wybranym folderze.
+1.  Place the `index.html` file in your chosen directory.
 
-2.  **Uruchom lokalny serwer HTTP** w tym folderze. Najprościej jest użyć wbudowanego serwera Pythona:
+2.  **Start a local HTTP server** in that directory. The easiest way is to use Python's built-in server:
     ```bash
-    # Dla Pythona 3.x
+    # For Python 3.x
     python3 -m http.server 8080
     ```
 
-3.  Otwórz przeglądarkę i przejdź pod adres wskazany przez serwer (np. `http://localhost:8080`). Aplikacja powinna się załadować.
+3.  Open your browser and navigate to the server address (e.g., `http://localhost:8080`). The application should load.
 
-## Użytkowanie Aplikacji
+## Using the Application
 
-### Rozwiązywanie Quizu
-1.  Po otwarciu aplikacji zobaczysz listę dostępnych quizów.
-2.  Kliknij na wybrany quiz, aby go rozpocząć.
-3.  Odpowiadaj na pytania, wybierając jedną z opcji i klikając "Submit".
-4.  Po każdej odpowiedzi zobaczysz, czy była poprawna, oraz wyjaśnienie.
-5.  Kliknij "Next Question", aby przejść dalej.
-6.  Po ukończeniu quizu zobaczysz swój wynik.
+### Taking a Quiz
+1.  When you open the application, you'll see a list of available quizzes.
+2.  Click on a quiz to start it.
+3.  Answer the questions by selecting an option and clicking "Submit".
+4.  After each answer, you'll see if it was correct along with an explanation.
+5.  Click "Next Question" to proceed.
+6.  After completing the quiz, you'll see your final score.
 
-### Tworzenie Nowego Quizu
-1.  Na stronie głównej znajdź sekcję "Create a New Quiz" i rozwiń ją.
-2.  W polu tekstowym znajduje się przykładowa struktura JSON dla quizu.
-3.  Zmodyfikuj lub wklej własny JSON zgodnie z formatem. JSON musi zawierać:
-    - `name` (string): Tytuł quizu.
-    - `questions` (array of objects): Lista pytań.
-      Każdy obiekt pytania musi zawierać:
-      - `question` (string): Treść pytania.
-      - `options` (array of strings): Lista możliwych odpowiedzi.
-      - `correct_answer` (string): Dokładna treść poprawnej odpowiedzi.
-      - `explanation` (string): Wyjaśnienie.
-4.  Kliknij przycisk "Create Quiz".
-5.  Jeśli JSON jest poprawny, quiz zostanie utworzony, a lista quizów odświeżona.
+### Creating a New Quiz
+1.  On the home page, find the "Create a New Quiz" section and expand it.
+2.  The text area contains a sample JSON structure for a quiz.
+3.  Modify or paste your own JSON following this format. The JSON must include:
+    - `name` (string): Quiz title.
+    - `questions` (array of objects): List of questions.
+      Each question object must contain:
+      - `question` (string): The question text.
+      - `options` (array of strings): List of possible answers.
+      - `correct_answer` (string): The exact text of the correct answer.
+      - `explanation` (string): Explanation for the answer.
+4.  Click the "Create Quiz" button.
+5.  If the JSON is valid, the quiz will be created and the quiz list will refresh.
+
+---
+
+## Polish Version (Polska Wersja)
+
+[Polish documentation is available here](README_PL.md)
